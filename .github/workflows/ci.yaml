@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - "packages/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "packages/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.23.x"
+  GOBIN: ${{ github.workspace }}/bin
+  TOOLS_REPO: "gnolang/gno"
+  TOOLS_REF: "master"
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Expose GOBIN on PATH
+        run: echo "${GOBIN}" >> "$GITHUB_PATH"
+
+      - name: Checkout tools repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TOOLS_REPO }}
+          ref: ${{ env.TOOLS_REF }}   # master, latest commit
+          path: toolsrepo
+          fetch-depth: 1              # only latest commit
+
+      - name: Install tools
+        run: |
+          cd toolsrepo
+          # Install from the tools repo
+          go install ./gnovm/cmd/gno
+
+      - name: Verify tools
+        run: |
+          which gno
+
+      # --- CI steps on packages ---
+      - name: Format check
+        working-directory: packages
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "These files need gofmt:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Lint
+        working-directory: packages
+        run: gno lint ./... -v || true
+
+      - name: Test
+        working-directory: packages
+        run: gno test ./... -v
