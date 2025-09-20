@@ -1,4 +1,4 @@
-package home
+package home2
 
 import (
 	"strings"
@@ -6,8 +6,8 @@ import (
 	"gno.land/p/nt/ownable"
 )
 
-var OwnableAddress = ownable.NewWithAddress("g13szarf3rw3jf7m6v43yzwfz5jx0njkezq6hjx3")
-var pp = "![test](https://i2.seadn.io/ethereum/0x368ad4a7a7f49b8fa8f34476be0fc4d04ce622f5/22e9f239c16892e578adeea381a4dc6a.png?w=350)"
+var OwnableAddress = ownable.NewWithAddress("g1e7r5eglptfejknps3xv2kxv6pc8wvd3wwtw6tg")
+var pp = "![png](https://i.imgflip.com/a6o5jb.jpg)"
 var projects = []string{
 	"[Gnovisu](/r/pierre115/gnovisu) - Lib Svg for Data Visualisation.",
 }
