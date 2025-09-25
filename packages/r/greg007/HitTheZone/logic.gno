@@ -235,7 +235,7 @@ func GetGameHistory() []GameHistory {
 }
 
 func CalculateMultiplier(min, max int) float64 {
-	if min < 1 || max > 100 || min >= max {
+	if min < 0 || max > 100 || min > max {
 		return 0.0
 	}
 	rangeSize := max - min + 1
