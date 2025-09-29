@@ -1,4 +1,4 @@
-// Package gnov provides functionality to render a scatter plot as an SVG image.
+// Package gnov (Gno Visual) provides functionality to render a scatter plot as an SVG image.
 // It takes a list of points (x,y) and draws them as circles on a 2D .
 // You can also apply Flags.
 package gnov
