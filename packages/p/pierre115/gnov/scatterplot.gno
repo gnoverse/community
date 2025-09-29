@@ -9,8 +9,32 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
-func niceStep(rangeVal float64, maxTicks int) float64 {
+// Get max ticks for axis
+func (sp ScatterPlot) GetMaxTicks() int {
+    if sp.maxTicks == 0 {
+        return 10
+    }
+    return sp.maxTicks
+}
+
+// Get width and height of the svg
+func (sp ScatterPlot) GetWidth() int {
+    if sp.Width == 0 {
+        return 750
+    }
+    return sp.Width
+}
+
+func (sp ScatterPlot) GetHeight() int {
+    if sp.Height == 0 {
+        return 600
+    }
+    return sp.Height
+}
+
+func niceStep(sp ScatterPlot, rangeVal float64) float64 {
     var niceBase float64
+    maxTicks := sp.GetMaxTicks()
     rawStep := rangeVal / float64(maxTicks)
     exponent := math.Floor(math.Log10(rawStep))
     fraction := rawStep / math.Pow(10, exponent)
@@ -30,14 +54,14 @@ func niceStep(rangeVal float64, maxTicks int) float64 {
 }
 
 // Use the ideal steps for X and Y axis
-func StepXY(maxX, maxY, minX, minY float64) (float64 ,float64, float64, float64, float64, float64) {
+func StepXY(sp ScatterPlot, maxX, maxY, minX, minY float64) (float64 ,float64, float64, float64, float64, float64) {
 
 	rangeX := maxX - minX
-    stepX := niceStep(rangeX, 10)
+    stepX := niceStep(sp, rangeX)
     startX := math.Floor(minX/stepX) * stepX
     endX := math.Ceil(maxX/stepX) * stepX
     rangeY := maxY - minY
-    stepY := niceStep(rangeY, 10)
+    stepY := niceStep(sp, rangeY)
     startY := math.Floor(minY/stepY) * stepY
     endY := math.Ceil(maxY/stepY) * stepY
 
@@ -45,21 +69,21 @@ func StepXY(maxX, maxY, minX, minY float64) (float64 ,float64, float64, float64,
 }
 
 // Draw axes and axes titles, return SVG strings
-func RenderAxes(X_axe string, Y_axe string, Width, Height int, maxX, maxY, minX, minY float64) string {
+func RenderAxes(sp ScatterPlot, Width, Height int, maxX, maxY, minX, minY float64) string {
     svgOut := ""
 
 	// Axe Y
     svgOut += ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="black"/>`, 40, Height-40, Width-60, 1)
     svgOut += ufmt.Sprintf(
         `<text x="%d" y="%d" style="font-family:'Inter var',sans-serif;font-size:%dpx;text-anchor:middle;" transform="rotate(-90 %d %d)" fill="black">%s</text>`,
-        10, Height/2, 12, 15, Height/2, Y_axe,
+        10, Height/2, 12, 15, Height/2, sp.YAxis,
     )
 
 	// Axe X
     svgOut += ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="black"/>`, 40, 20, 1, Height-60)
     svgOut += ufmt.Sprintf(
         `<text x="%d" y="%d" style="font-family:'Inter var',sans-serif;font-size:%dpx;text-anchor:middle;" fill="black">%s</text>`,
-        Width/2, Height-10, 12, X_axe,
+        Width/2, Height-10, 12, sp.XAxis,
     )
 
     // Scale helpers
@@ -71,7 +95,7 @@ func RenderAxes(X_axe string, Y_axe string, Width, Height int, maxX, maxY, minX,
     }
 
     // Nicesteps calcul for graduation
-    stepX, startX, endX, stepY, startY, endY := StepXY(maxX, maxY, minX, minY)
+    stepX, startX, endX, stepY, startY, endY := StepXY(sp, maxX, maxY, minX, minY)
 
     // Graduation X
     for val := startX; val <= endX; val += stepX {
@@ -98,10 +122,11 @@ func RenderAxes(X_axe string, Y_axe string, Width, Height int, maxX, maxY, minX,
 func (sp ScatterPlot) String() string {
 
 	const (
-        Width  = 750
-        Height = 600
         pointRadius  = 2
     )
+
+    Width  := sp.GetWidth()
+    Height := sp.GetHeight()
 
     if len(sp.Points) == 0 {
         return "\nscatterplot fails: no data provided"
@@ -119,7 +144,7 @@ func (sp ScatterPlot) String() string {
     }
 
     svgOut := ""
-    svgOut += RenderAxes(sp.XAxis, sp.YAxis, Width, Height, maxX, maxY, minX, minY)
+    svgOut += RenderAxes(sp, Width, Height, maxX, maxY, minX, minY)
 
     // Draw Points and labels
     for _, p := range sp.Points {
@@ -137,7 +162,7 @@ func (sp ScatterPlot) String() string {
     }
 
     // Flags :
-    if sp.Flag == "re" {
+    if sp.FlagRe == true {
         svgOut += RenderReFlag(sp.Points, minX, maxX, minY, maxY, Width, Height)
     }
 

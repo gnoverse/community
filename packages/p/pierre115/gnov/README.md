@@ -2,29 +2,29 @@
 
 The `gnov` package allows you to render a scatter plot as an SVG image. It takes a list of `(x, y)` points and draws them as circles on a 2D canvas. You can also apply optional flags to display regression lines or curves.
 
-## Function
+## API references
 
 ```go
 Testscatter(POINTS, "TITLE", "X_AXIS_TITLE", "Y_AXIS_TITLE", "FLAG")
 ```
 
-## ARGS
-
 `POINTS` strcuture is set with the following arguments :
  ```go
-	X, Y  float64
-	Color string
-	Label string
+	type Point struct {
+	    X, Y  float64 //Coordinate of the point
+	    Color string // Color of the point
+	    Label string // Associate a label to the point
+    }
 ```
+`TITLE`, `X_AXIS_TITLE`, `Y_AXIS_TITLE` are strings.
 
-`TITLE` is a string
+`FlagRe` is a `Boolean` value: `true` to enable and false by default.
 
-`X_AXIS_TITLE` is a string
+`Maxticks` is an `int` n used to divide the axis into n graduation marks.
 
-`Y_AXIS_TITLE` is a string
+`Width` and `height` are `int` to personalize the size of the scatterplot.
 
-
-## Structure
+## Usage
 
 `Usecase`
 
@@ -36,15 +36,17 @@ ScatterPlot{
             {X: 102, Y: 40, Label: "C"},
 			{X: 103, Y: 60, Label: "D"},
         },
-        Title: "Evolution of sales",
-        XAxis: "Années",
-        YAxis: "Ventes",
-        Flag:  "re",
+        Title: "Sales Growth",
+        XAxis: "Years",
+        YAxis: "Sales",
+        FlagRe:  true,
+        maxticks: 20,
+        width: 800,
+        height: 800,
     }
 ```
 
-
 ## Flags
 
-Actually there is one existing flags : `Lineary Regression flag` that display the `regression line` of the scatterplot can be actived by the flag `re`.
+`Lineary Regression flag` that display the `regression line` of the scatterplot can be actived by the bool `true`.
 Each flag shows the `equation` of the regression in the top left of the Scatterplot.
