@@ -1,7 +1,7 @@
 package pokemon
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
@@ -27,7 +27,7 @@ func defaultUserData() *UserData {
 
 // Login registers a new user in the Pokémon game
 func Login(_ realm) {
-	usr := string(std.PreviousRealm().Address())
+	usr := string(runtime.PreviousRealm().Address())
 	if pokemonDAO.Has(usr) {
 		panic("user already a member")
 	}
@@ -36,7 +36,7 @@ func Login(_ realm) {
 
 // DeleteMyAccount removes the user's account and data
 func DeleteMyAccount(_ realm) {
-	usr := string(std.PreviousRealm().Address())
+	usr := string(runtime.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {
 		panic("user is not a member")
 	}
@@ -51,7 +51,7 @@ func renderPokemonLogin(rend *mux.ResponseWriter, _ *mux.Request) {
 	rend.Write(md.H2("Select your account"))
 	pokemonDAO.Iterate("", "", func(addr string, user any) bool {
 		name := addr
-		data := users.ResolveAddress(std.Address(addr))
+		data := users.ResolveAddress(address(addr))
 		if data != nil {
 			name = data.Name()
 		}

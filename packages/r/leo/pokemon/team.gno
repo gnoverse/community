@@ -1,8 +1,8 @@
 package pokemon
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strconv"
 
 	"gno.land/p/moul/md"
@@ -14,7 +14,7 @@ import (
 // SwapTeam updates the user's Pokémon team based on the provided team string
 func SwapTeam(_ realm, team string) {
 
-	usr := string(std.PreviousRealm().Address())
+	usr := string(runtime.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {
 		panic("user is not member")
 	}

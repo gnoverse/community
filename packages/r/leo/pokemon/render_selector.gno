@@ -1,9 +1,9 @@
 package pokemon
 
 import (
+	"chain/runtime"
 	"math/rand"
 	"net/url"
-	"std"
 	"strings"
 	"time"
 
@@ -27,7 +27,7 @@ const (
 var (
 	// time-based seed for combat enemy IA (random issou)
 	r           = rand.New(rand.NewPCG(uint64(time.Now().Unix()), uint64(time.Now().Unix())))
-	atmPath     = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
+	atmPath     = runtime.CurrentRealm().PkgPath()[len(runtime.ChainDomain()):]
 	pokemonPath = map[RenderPage]mux.HandlerFunc{
 		pokemonLogin:        renderPokemonLogin, // login page for user selection
 		pokemonLobby:        renderPokemonLobby, // lobby page for game navigation
