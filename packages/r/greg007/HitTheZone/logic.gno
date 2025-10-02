@@ -10,22 +10,16 @@ import (
 	"gno.land/p/moul/fifo"
 )
 
-// ========== VARIABLES GLOBALES ==========
-
 var (
 	lastRandomNumber int = 1
 	counter          uint64
 	gameHistory      = fifo.New(10)
 	totalDonations   int64
-	ownerAddress     std.Address
+	ownerAddress     = std.OriginCaller()
 )
 
-func init() {
-	ownerAddress = std.OriginCaller()
-}
-
-// ========== CORE FUNCTIONS ==========
-
+// generateRandom generates a random number between 1 and 100 using entropy-based seeding.
+// The generated number is stored in the global lastRandomNumber variable.
 func generateRandom() {
 	counter++
 	seed1 := uint64(entropy.New().Seed())
@@ -35,10 +29,12 @@ func generateRandom() {
 	lastRandomNumber = r.IntN(100) + 1
 }
 
+// safeSendCoins safely sends coins to a recipient with error handling and event emission.
+// It returns true if the transfer was successful, false otherwise.
+// Failed transfers are logged via events and recovered from panics.
 func safeSendCoins(recipient std.Address, amount int64) bool {
 	defer func() {
 		if r := recover(); r != nil {
-			// Payment failed - log the failure
 			std.Emit("PaymentFailed",
 				"recipient", recipient.String(),
 				"amount", strconv.FormatInt(amount, 10),
@@ -54,7 +50,6 @@ func safeSendCoins(recipient std.Address, amount int64) bool {
 	coins := std.NewCoins(std.NewCoin("ugnot", amount))
 	banker.SendCoins(std.CurrentRealm().Address(), recipient, coins)
 
-	// Log successful payment
 	std.Emit("PaymentSent",
 		"recipient", recipient.String(),
 		"amount", strconv.FormatInt(amount, 10),
@@ -63,25 +58,26 @@ func safeSendCoins(recipient std.Address, amount int64) bool {
 	return true
 }
 
+// Game executes the main game logic for Hit The Zone.
+// Players specify a min and max range, and a random number (1-100) is generated.
+// If the random number falls within the range, the player wins based on the multiplier.
+// The function validates inputs, plays the game, handles payouts, and records the result.
 func Game(cur realm, min int, max int) {
 	std.AssertOriginCall()
-	
-	// 1. Validate inputs
+
 	betAmount := validateGameInputs(min, max)
-	
-	// 2. Play the game
 	multiplier := CalculateMultiplier(min, max)
 	won := playGame(min, max)
-	
-	// 3. Handle payout
+
 	caller := std.OriginCaller()
 	result, actualWinAmount := handlePayout(won, betAmount, multiplier, caller)
-	
-	// 4. Record game
+
 	recordGame(caller, min, max, betAmount, actualWinAmount, multiplier, result)
 }
 
-// Validate all game inputs and return bet amount
+// validateGameInputs validates all game inputs and returns the bet amount.
+// It checks that min >= 1, max <= 100, min < max, and bet amount >= 1 ugnot.
+// Panics if any validation fails.
 func validateGameInputs(min, max int) int64 {
 	if min < 1 {
 		panic("min must be >= 1")
@@ -106,45 +102,31 @@ func validateGameInputs(min, max int) int64 {
 	return betAmount
 }
 
-// Play the game and return if player won
+// playGame generates a random number and checks if it falls within the player's range.
+// Returns true if the player won, false otherwise.
 func playGame(min, max int) bool {
 	generateRandom()
 	return lastRandomNumber >= min && lastRandomNumber <= max
 }
 
-// Handle all payout logic and return result message and actual payout
+// handlePayout handles all payout logic and returns the result message and actual payout amount.
+// If the player won, it attempts to pay winnings based on the multiplier.
+// If insufficient funds exist, it refunds the bet. All outcomes are logged via events.
+// Uses early returns to minimize gas costs.
 func handlePayout(won bool, betAmount int64, multiplier float64, caller std.Address) (string, int64) {
 	if !won {
 		return "Lose", 0
 	}
 
-	// Player won - calculate and try to pay
+	currentBalance := GetRealmBalance()
+
+	if currentBalance < betAmount {
+		return "Win (House broke - no payout)", 0
+	}
+
 	winAmount := int64(float64(betAmount) * multiplier)
-	currentBalance := GetRealmBalance() - betAmount
-	
-	if currentBalance >= winAmount {
-		// Can pay full winnings
-		success := safeSendCoins(caller, winAmount)
-		if success {
-			std.Emit("GamePayout",
-				"player", caller.String(),
-				"type", "win_payout",
-				"bet_amount", strconv.FormatInt(betAmount, 10),
-				"win_amount", strconv.FormatInt(winAmount, 10),
-				"multiplier", strconv.FormatFloat(multiplier, 'f', 2, 64))
-			return "Win", winAmount
-		} else {
-			// Payment failed, refund bet
-			safeSendCoins(caller, betAmount)
-			std.Emit("GamePayout",
-				"player", caller.String(),
-				"type", "refund_after_failed_payout",
-				"bet_amount", strconv.FormatInt(betAmount, 10),
-				"refund_amount", strconv.FormatInt(betAmount, 10))
-			return "Win (Payment failed - refunded)", betAmount
-		}
-	} else if currentBalance >= betAmount {
-		// Can't pay winnings, but can refund bet
+
+	if currentBalance < winAmount {
 		safeSendCoins(caller, betAmount)
 		std.Emit("GamePayout",
 			"player", caller.String(),
@@ -153,18 +135,35 @@ func handlePayout(won bool, betAmount int64, multiplier float64, caller std.Addr
 			"refund_amount", strconv.FormatInt(betAmount, 10),
 			"required_amount", strconv.FormatInt(winAmount, 10))
 		return "Win (Insufficient funds - refunded)", betAmount
-	} else {
-		// House is completely broke
-		std.Emit("GamePayout",
-			"player", caller.String(),
-			"type", "no_payout_house_broke",
-			"bet_amount", strconv.FormatInt(betAmount, 10),
-			"required_amount", strconv.FormatInt(winAmount, 10))
-		return "Win (House broke - no payout)", 0
 	}
+
+	return handleWinPayout(caller, betAmount, winAmount, multiplier)
 }
 
-// Record the game in history
+// handleWinPayout attempts to pay the full winnings to the player.
+// If payment fails, it refunds the bet instead.
+func handleWinPayout(caller std.Address, betAmount, winAmount int64, multiplier float64) (string, int64) {
+	if !safeSendCoins(caller, winAmount) {
+		safeSendCoins(caller, betAmount)
+		std.Emit("GamePayout",
+			"player", caller.String(),
+			"type", "refund_after_failed_payout",
+			"bet_amount", strconv.FormatInt(betAmount, 10),
+			"refund_amount", strconv.FormatInt(betAmount, 10))
+		return "Win (Payment failed - refunded)", betAmount
+	}
+
+	std.Emit("GamePayout",
+		"player", caller.String(),
+		"type", "win_payout",
+		"bet_amount", strconv.FormatInt(betAmount, 10),
+		"win_amount", strconv.FormatInt(winAmount, 10),
+		"multiplier", strconv.FormatFloat(multiplier, 'f', 2, 64))
+	return "Win", winAmount
+}
+
+// recordGame records the game result in the game history.
+// History is stored in a FIFO queue that keeps the last 10 games.
 func recordGame(player std.Address, min, max int, betAmount, winAmount int64, multiplier float64, result string) {
 	game := GameHistory{
 		Player:       player,
@@ -181,6 +180,9 @@ func recordGame(player std.Address, min, max int, betAmount, winAmount int64, mu
 	gameHistory.Append(game)
 }
 
+// Donate allows users to send donations to the game owner.
+// The donated amount is transferred to the owner's address and tracked in totalDonations.
+// Panics if the donation amount is invalid or the transfer fails.
 func Donate(cur realm) {
 	std.AssertOriginCall()
 
@@ -196,23 +198,24 @@ func Donate(cur realm) {
 
 	totalDonations += coins[0].Amount
 
-	std.Emit("Donation", 
-		"amount", strconv.FormatInt(coins[0].Amount, 10), 
+	std.Emit("Donation",
+		"amount", strconv.FormatInt(coins[0].Amount, 10),
 		"from", std.OriginCaller().String())
 }
 
-// ========== GETTERS (Used in Render) ==========
-
+// GetRealmBalance returns the current balance of ugnot held by the realm.
 func GetRealmBalance() int64 {
 	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(std.CurrentRealm().Address())
 	return coins.AmountOf("ugnot")
 }
 
+// GetTotalDonations returns the total amount of donations received by the game.
 func GetTotalDonations() int64 {
 	return totalDonations
 }
 
+// GetGameHistory returns the last 10 games played, ordered from most recent to oldest.
 func GetGameHistory() []GameHistory {
 	history := make([]GameHistory, 0, 10)
 
@@ -226,7 +229,6 @@ func GetGameHistory() []GameHistory {
 		}
 	}
 
-	// Reverse to show most recent first
 	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
 		history[i], history[j] = history[j], history[i]
 	}
@@ -234,6 +236,9 @@ func GetGameHistory() []GameHistory {
 	return history
 }
 
+// CalculateMultiplier calculates the payout multiplier based on the chosen range.
+// A smaller range results in a higher multiplier (up to x100 for a single number).
+// Returns 0.0 if the range is invalid.
 func CalculateMultiplier(min, max int) float64 {
 	if min < 0 || max > 100 || min > max {
 		return 0.0
@@ -242,8 +247,9 @@ func CalculateMultiplier(min, max int) float64 {
 	return 100.0 / float64(rangeSize)
 }
 
-// ========== ADMIN FUNCTIONS (Optional - keep for emergencies) ==========
-
+// WithdrawAll allows the owner to withdraw all funds from the realm.
+// Only the owner can call this function.
+// Panics if called by a non-owner or if the withdrawal fails.
 func WithdrawAll(cur realm) {
 	std.AssertOriginCall()
 
