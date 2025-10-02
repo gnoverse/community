@@ -8,9 +8,10 @@ import (
 type Cell struct {
 	X     int
 	Y     int
-	Color string
+	Color string // colors of the cells if owned
 	Owner std.Address
-	url  string
+	Url  string // url of the pub
+	Label string // pseudo of the owner or the name of the pub
 }
 
 // Global Grid
