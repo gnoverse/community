@@ -53,7 +53,7 @@ func renderQuickPlay(minVal, maxVal, amount string) string {
 		min, _ := strconv.Atoi(minVal)
 		max, _ := strconv.Atoi(maxVal)
 		multiplier := CalculateMultiplier(min, max)
-		winChance := float64(max-min+1)
+		winChance := float64(max - min + 1)
 
 		col.WriteString(md.H3("🎰 Game Info"))
 		col.WriteString(md.Bold("Range:") + " " + minVal + " - " + maxVal + "\n")
