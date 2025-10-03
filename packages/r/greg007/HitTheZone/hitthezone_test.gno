@@ -1,7 +1,6 @@
 package hitthezone
 
 import (
-	"std"
 	"testing"
 )
 
@@ -59,7 +58,7 @@ func TestHandlePayoutWin(t *testing.T) {
 	// Test win scenario logic (without actual coin transfers)
 	// In test environment, we can't test actual payouts due to banker restrictions
 	// This test verifies the handlePayout returns expected result for win condition
-	testAddr := std.Address("g1test")
+	testAddr := address("g1test")
 	betAmount := int64(1000)
 	multiplier := 2.0
 
@@ -90,7 +89,7 @@ func TestHandlePayoutWin(t *testing.T) {
 
 func TestHandlePayoutLose(t *testing.T) {
 	// Test loss scenario
-	testAddr := std.Address("g1test")
+	testAddr := address("g1test")
 	betAmount := int64(1000)
 	multiplier := 2.0
 

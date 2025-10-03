@@ -1,8 +1,10 @@
 package hitthezone
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"math/rand"
-	"std"
 	"strconv"
 	"time"
 
@@ -15,7 +17,7 @@ var (
 	counter          uint64
 	gameHistory      = fifo.New(10)
 	totalDonations   int64
-	ownerAddress     = std.OriginCaller()
+	ownerAddress     = runtime.OriginCaller()
 )
 
 // generateRandom generates a random number between 1 and 100 using entropy-based seeding.
@@ -32,10 +34,10 @@ func generateRandom() {
 // safeSendCoins safely sends coins to a recipient with error handling and event emission.
 // It returns true if the transfer was successful, false otherwise.
 // Failed transfers are logged via events and recovered from panics.
-func safeSendCoins(recipient std.Address, amount int64) bool {
+func safeSendCoins(recipient address, amount int64) bool {
 	defer func() {
 		if r := recover(); r != nil {
-			std.Emit("PaymentFailed",
+			chain.Emit("PaymentFailed",
 				"recipient", recipient.String(),
 				"amount", strconv.FormatInt(amount, 10),
 				"reason", "transaction_failed")
@@ -46,11 +48,11 @@ func safeSendCoins(recipient std.Address, amount int64) bool {
 		return false
 	}
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	coins := std.NewCoins(std.NewCoin("ugnot", amount))
-	banker.SendCoins(std.CurrentRealm().Address(), recipient, coins)
+	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	coins := chain.NewCoins(chain.NewCoin("ugnot", amount))
+	b.SendCoins(runtime.CurrentRealm().Address(), recipient, coins)
 
-	std.Emit("PaymentSent",
+	chain.Emit("PaymentSent",
 		"recipient", recipient.String(),
 		"amount", strconv.FormatInt(amount, 10),
 		"timestamp", strconv.FormatInt(time.Now().Unix(), 10))
@@ -63,13 +65,13 @@ func safeSendCoins(recipient std.Address, amount int64) bool {
 // If the random number falls within the range, the player wins based on the multiplier.
 // The function validates inputs, plays the game, handles payouts, and records the result.
 func Game(cur realm, min int, max int) {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
 	betAmount := validateGameInputs(min, max)
 	multiplier := CalculateMultiplier(min, max)
 	won := playGame(min, max)
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	result, actualWinAmount := handlePayout(won, betAmount, multiplier, caller)
 
 	recordGame(caller, min, max, betAmount, actualWinAmount, multiplier, result)
@@ -89,7 +91,7 @@ func validateGameInputs(min, max int) int64 {
 		panic("min must be < max")
 	}
 
-	coins := std.OriginSend()
+	coins := banker.OriginSend()
 	betAmount := int64(0)
 	if len(coins) > 0 {
 		betAmount = coins[0].Amount
@@ -113,7 +115,7 @@ func playGame(min, max int) bool {
 // If the player won, it attempts to pay winnings based on the multiplier.
 // If insufficient funds exist, it refunds the bet. All outcomes are logged via events.
 // Uses early returns to minimize gas costs.
-func handlePayout(won bool, betAmount int64, multiplier float64, caller std.Address) (string, int64) {
+func handlePayout(won bool, betAmount int64, multiplier float64, caller address) (string, int64) {
 	if !won {
 		return "Lose", 0
 	}
@@ -128,7 +130,7 @@ func handlePayout(won bool, betAmount int64, multiplier float64, caller std.Addr
 
 	if currentBalance < winAmount {
 		safeSendCoins(caller, betAmount)
-		std.Emit("GamePayout",
+		chain.Emit("GamePayout",
 			"player", caller.String(),
 			"type", "refund_insufficient_funds",
 			"bet_amount", strconv.FormatInt(betAmount, 10),
@@ -142,10 +144,10 @@ func handlePayout(won bool, betAmount int64, multiplier float64, caller std.Addr
 
 // handleWinPayout attempts to pay the full winnings to the player.
 // If payment fails, it refunds the bet instead.
-func handleWinPayout(caller std.Address, betAmount, winAmount int64, multiplier float64) (string, int64) {
+func handleWinPayout(caller address, betAmount, winAmount int64, multiplier float64) (string, int64) {
 	if !safeSendCoins(caller, winAmount) {
 		safeSendCoins(caller, betAmount)
-		std.Emit("GamePayout",
+		chain.Emit("GamePayout",
 			"player", caller.String(),
 			"type", "refund_after_failed_payout",
 			"bet_amount", strconv.FormatInt(betAmount, 10),
@@ -153,7 +155,7 @@ func handleWinPayout(caller std.Address, betAmount, winAmount int64, multiplier 
 		return "Win (Payment failed - refunded)", betAmount
 	}
 
-	std.Emit("GamePayout",
+	chain.Emit("GamePayout",
 		"player", caller.String(),
 		"type", "win_payout",
 		"bet_amount", strconv.FormatInt(betAmount, 10),
@@ -164,7 +166,7 @@ func handleWinPayout(caller std.Address, betAmount, winAmount int64, multiplier 
 
 // recordGame records the game result in the game history.
 // History is stored in a FIFO queue that keeps the last 10 games.
-func recordGame(player std.Address, min, max int, betAmount, winAmount int64, multiplier float64, result string) {
+func recordGame(player address, min, max int, betAmount, winAmount int64, multiplier float64, result string) {
 	game := GameHistory{
 		Player:       player,
 		Min:          min,
@@ -184,9 +186,9 @@ func recordGame(player std.Address, min, max int, betAmount, winAmount int64, mu
 // The donated amount is transferred to the owner's address and tracked in totalDonations.
 // Panics if the donation amount is invalid or the transfer fails.
 func Donate(cur realm) {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
-	coins := std.OriginSend()
+	coins := banker.OriginSend()
 	if len(coins) == 0 || coins[0].Amount <= 0 {
 		panic("invalid donation")
 	}
@@ -198,15 +200,15 @@ func Donate(cur realm) {
 
 	totalDonations += coins[0].Amount
 
-	std.Emit("Donation",
+	chain.Emit("Donation",
 		"amount", strconv.FormatInt(coins[0].Amount, 10),
-		"from", std.OriginCaller().String())
+		"from", runtime.OriginCaller().String())
 }
 
 // GetRealmBalance returns the current balance of ugnot held by the realm.
 func GetRealmBalance() int64 {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(std.CurrentRealm().Address())
+	b := banker.NewBanker(banker.BankerTypeReadonly)
+	coins := b.GetCoins(runtime.CurrentRealm().Address())
 	return coins.AmountOf("ugnot")
 }
 
@@ -251,9 +253,9 @@ func CalculateMultiplier(min, max int) float64 {
 // Only the owner can call this function.
 // Panics if called by a non-owner or if the withdrawal fails.
 func WithdrawAll(cur realm) {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
-	if std.OriginCaller() != ownerAddress {
+	if runtime.OriginCaller() != ownerAddress {
 		panic("only owner can withdraw")
 	}
 

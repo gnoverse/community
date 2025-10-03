@@ -1,14 +1,13 @@
 package hitthezone
 
 import (
-	"std"
 	"time"
 )
 
 // GameHistory represents a single game record in the Hit The Zone game.
 // It contains all information about a player's game including bet, outcome, and timestamp.
 type GameHistory struct {
-	Player       std.Address
+	Player       address
 	Min          int
 	Max          int
 	RandomNumber int
