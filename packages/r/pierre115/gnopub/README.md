@@ -10,9 +10,9 @@ Each ad is tied to a specific cell, allowing users to own multiple spaces for di
 ### Step 1 :
 Buy a cell with the function `BuyCells`
 ### Step 2 :
-Set the pub and the label with the function `UpdateCells` on yours cells (You can't modify if you aren't the owner of the cell)
+Set the pub and the label with the function `UpdateCells` on yours cells
 ### Step 3 :
-Sell your cells with the function `SellCells` (The cell is reset)
+Sell your cells with the function `SellCells`
 
 # RoadMap :
 

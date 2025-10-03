@@ -19,11 +19,11 @@ func Render(path string) string {
 	// tutorial
 	out += "## Tuto 📚:\n\n"
 	out += "### Step 1 :\n\n"
-	out += "Buy a cell with the function `BuyCells`\n\n"
+	out += "Buy a cell with the function `BuyCells`.\n\n"
 	out += "### Step 2 :\n\n"
-	out += "Set the pub and the label with the function `UpdateCells` on yours cells (You can't modify if you aren't the owner of the cell)\n\n"
+	out += "Set the pub and the label with the function `UpdateCells` on yours cells.\n\n"
 	out += "### Step 3 :\n\n"
-	out += "Sell your cells with the function `SellCells` (The cell is reset)\n\n"
+	out += "Sell your cells with the function `SellCells`.\n\n"
 
 	// Utility buttons
 	out += "---\n\n"
