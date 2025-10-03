@@ -2,7 +2,7 @@ package home
 
 import (
 	"strings"
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/nt/ownable"
 	"gno.land/p/moul/md"
@@ -23,7 +23,7 @@ var (
 	}
 )
 
-func IsAuthorized(addr std.Address) bool {
+func IsAuthorized(addr address) bool {
 	return addr == OwnableAddress.Owner()
 }
 
@@ -47,7 +47,7 @@ func RenderLinks() string {
 }
 
 func AddProjects(_ realm, name, url, desc string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic("unauthorized")
 	}
 	entry := md.Link(name, url) + " - " + desc
@@ -55,7 +55,7 @@ func AddProjects(_ realm, name, url, desc string) {
 }
 
 func AddLinks(_ realm, name, url, desc string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic("unauthorized")
 	}
 	entry := md.Link(name, url) + " - " + desc
@@ -63,7 +63,7 @@ func AddLinks(_ realm, name, url, desc string) {
 }
 
 func UpdatePicture(_ realm, name, url string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic("unauthorized")
 	}
 	entry := md.Image(name, url)
@@ -71,7 +71,7 @@ func UpdatePicture(_ realm, name, url string) {
 }
 
 func UpdateIntro(_ realm, newText string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic("unauthorized")
 	}
 	modtext = newText
